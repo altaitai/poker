@@ -64,231 +64,28 @@
 var app = angular.module("pokerApp", []);
 app.controller("pokerCtrl", function($scope) {
   $scope.deck = []
-  $scope.remainingCards = initCards();
   $scope.win = "";
-  $scope.redraw = false;
   $scope.bet = 0.25;
   $scope.wallet = 100.0;
   $scope.holdCard = function(id) {
     $scope.deck[id].held = !$scope.deck[id].held;
   }
   $scope.draw = function() {
-    if (!$scope.redraw) {
-      $scope.wallet -= $scope.bet;
-      $scope.remainingCards = initCards();
-      $scope.deck = [];
-      for (var i = 0; i < 5; i++) {
-        var index = getRandomInt($scope.remainingCards.length);
-        $scope.deck.push($scope.remainingCards[index]);
-        $scope.remainingCards.splice(index, 1);
-      }
+    const req = {
+      "bet": $scope.bet
     }
-    else {
-      for (var i = 0; i < $scope.deck.length; i++) {
-        if (!$scope.deck[i].held) {
-          var index = getRandomInt($scope.remainingCards.length);
-          $scope.deck[i] = $scope.remainingCards[index];
-          $scope.remainingCards.splice(index, 1);
-        }
-      }
-    }
-    var result = checkDeck($scope.deck);
-    if ($scope.redraw) {
-      if (result) {
-        $scope.win = "Congratulations ! " + result.name;
-        $scope.wallet += $scope.bet*result.value;
-      }
-      else {
-        $scope.win = "Please try again";
-      }
-    }
-    else {
-      if (result) {
-        $scope.win = result.name;
-      }
-      else {
-        $scope.win = "Good luck";
-      }
-    }
-    $scope.redraw = !$scope.redraw;
+    $http.post("/draw", JSON.stringify(data))
+    .then((res) => {
+      const result = JSON.parse(res);
+      $scope.deck = result.deck;
+      $scope.win = result.win;
+      $scope.wallet = result.wallet;
+    })
+    .catch((err) => {
+    
+    });
   }
 });
-
-var suits = [
-  "clubs", 
-  "diamonds", 
-  "hearts", 
-  "spades"
-];
-
-var ranks = [
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
-  "10",
-  "jack",
-  "queen",
-  "king",
-  "ace"
-];
-
-var winnings = [
-  {
-    "name": "Royal Flush",
-    "value": 250,
-    "process": function(deck) {
-      // TODO
-      return false;
-    }
-  },
-  {
-    "name": "Straight Flush",
-    "value": 50,
-    "process": function(deck) {
-      // TODO
-      return false;
-    }
-  },
-  {
-    "name": "Four Of A Kind",
-    "value": 25,
-    "process": function(deck) {
-      var rankOccurences = countRankOccurences(deck);
-      for (var i = 0; i < ranks.length; i++) {
-        if (rankOccurences[ranks[i]] == 4) {
-          return true;
-        }
-      }
-      return false;
-    }
-  },
-  {
-    "name": "Full House",
-    "value": 6,
-    "process": function(deck) {
-      var rankOccurences = countRankOccurences(deck);
-      var foundThree = false;
-      var foundTwo = false;
-      for (var i = 0; i < ranks.length; i++) {
-        if (rankOccurences[ranks[i]] == 3) {
-          foundThree = true;
-        }
-        if (rankOccurences[ranks[i]] == 2) {
-          foundTwo = true;
-        }
-      }
-      return foundThree && foundTwo;
-    }
-  },
-  {
-    "name": "Flush",
-    "value": 5,
-    "process": function(deck) {
-      var lastSuit = deck[0].suit;
-      for (var i = 1; i < deck.length; i++) {
-        if (deck[i].suit != lastSuit) {
-          return false;
-        }
-      }
-      return true;
-    }
-  },
-  {
-    "name": "Straight",
-    "value": 4,
-    "process": function(deck) {
-      // TODO
-      return false;
-    }
-  },
-  {
-    "name": "Three Of A Kind",
-    "value": 3,
-    "process": function(deck) {
-      var rankOccurences = countRankOccurences(deck);
-      for (var i = 0; i < ranks.length; i++) {
-        if (rankOccurences[ranks[i]] >= 3) {
-          return true;
-        }
-      }
-      return false;
-    }
-  },
-  {
-    "name": "Double Pair",
-    "value": 2,
-    "process": function(deck) {
-      var rankOccurences = countRankOccurences(deck);
-      var onePair = false;
-      for (var i = 0; i < ranks.length; i++) {
-        if (rankOccurences[ranks[i]] >= 2) {
-          if (!onePair) {
-            onePair = true;
-          }
-          else {
-            return true;
-          }
-        }
-      }
-      return false;
-    }
-  },
-  {
-    "name": "Jacks Or Better",
-    "value": 1,
-    "process": function(deck) {
-      var rankOccurences = countRankOccurences(deck);
-      for (var i = 9; i < ranks.length; i++) {
-        if (rankOccurences[ranks[i]] >= 2) {
-          return true;
-        }
-      }
-      return false;
-    }
-  }
-];
-
-function getRandomInt(max) {
-  return Math.floor(Math.random() * Math.floor(max));
-};
-
-function initCards() {
-  var allCards = [];
-  for (var i = 0; i < suits.length; i++) {
-    for (var j = 0; j < ranks.length; j++) {
-      allCards.push({
-        "suit": suits[i],
-        "rank": ranks[j],
-        "held": false
-      });
-    }
-  }
-  return allCards;
-};
-
-function checkDeck(deck) {
-  for (var i = 0; i < winnings.length; i++) {
-    if (winnings[i].process(deck)) {
-      return winnings[i];
-    }
-  }
-};
-
-function countRankOccurences(deck) {
-  result = {};
-  for (var i = 0; i < deck.length; i++) {
-    if (!result[deck[i].rank]) {
-      result[deck[i].rank] = 0;
-    }
-    result[deck[i].rank]++;
-  }
-  return result;
-};
 </script>
 
 </body>
